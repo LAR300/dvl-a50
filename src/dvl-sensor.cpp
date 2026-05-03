@@ -174,6 +174,14 @@ void DVL_A50::publish_vel_trans_report()
     dvl.status = json_data["status"];
     dvl.form = json_data["format"];
 
+    // Parse hardware timestamps (Unix µs) for timestamp synchronization
+    if (json_data.contains("time_of_validity")) {
+        dvl.time_of_validity = int64_t(json_data["time_of_validity"]);
+    }
+    if (json_data.contains("time_of_transmission")) {
+        dvl.time_of_transmission = int64_t(json_data["time_of_transmission"]);
+    }
+
     // Add covariance from message
     std::vector<double> twistCovariance;
 

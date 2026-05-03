@@ -173,7 +173,13 @@ class DVL_A50(Node):
 
             theDVL.status = data["status"]
             theDVL.form = data["format"]
-		
+
+            # Parse hardware timestamps (Unix µs) for timestamp synchronization
+            if "time_of_validity" in data:
+                theDVL.time_of_validity = int(data["time_of_validity"])
+            if "time_of_transmission" in data:
+                theDVL.time_of_transmission = int(data["time_of_transmission"])
+
             beam0.id = data["transducers"][0]["id"]
             beam0.velocity = float(data["transducers"][0]["velocity"])
             beam0.distance = float(data["transducers"][0]["distance"])
