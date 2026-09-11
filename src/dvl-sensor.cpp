@@ -33,24 +33,24 @@ Node("dvl_a50_node")
     this->declare_parameter<std::string>("dvl_ip_address", "192.168.194.95");
     this->declare_parameter<std::string>("velocity_frame_id", "dvl_A50/velocity_link");
     this->declare_parameter<std::string>("position_frame_id", "dvl_A50/position_link");
-    
+
     velocity_frame_id = this->get_parameter("velocity_frame_id").as_string();
     position_frame_id = this->get_parameter("position_frame_id").as_string();
     ip_address = this->get_parameter("dvl_ip_address").as_string();
     RCLCPP_INFO(get_logger(), "IP_ADDRESS: '%s'", ip_address.c_str());
 
-    //--- TCP/IP SOCKET ---- 
+    //--- TCP/IP SOCKET ----
     tcpSocket = new TCPSocket((char*)ip_address.c_str() , 16171);
-    
+
     if(tcpSocket->Create() < 0)
         RCLCPP_ERROR(get_logger(), "Error creating the socket");
-   
+
     tcpSocket->SetRcvTimeout(400);
     std::string error;
-    
+
     int error_code = 0;
-    //int fault = 1; 
-    
+    //int fault = 1;
+
     first_time = std::chrono::steady_clock::now();
     first_time_error = first_time;
     while(fault != 0)
@@ -73,8 +73,8 @@ Node("dvl_a50_node")
             RCLCPP_WARN(get_logger(), "No route to host, DVL might be booting?: error_code: %d", error_code);
             usleep(2000000);
         }
-    }  
-    
+    }
+
     if(fault == -10)
     {
         tcpSocket->Close();
@@ -82,11 +82,11 @@ Node("dvl_a50_node")
     }
     else
         RCLCPP_INFO(get_logger(), "DVL-A50 connected!");
-    
+
     /*
      * Disable transducer operation to limit sensor heating out of water.
      */
-    this->set_json_parameter("acoustic_enabled", "false");
+    //this->set_json_parameter("acoustic_enabled", "false");
     usleep(2000);
 
 }
@@ -102,8 +102,8 @@ void DVL_A50::handle_receive()
     char *tempBuffer = new char[1];
 
     //tcpSocket->Receive(&tempBuffer[0]);
-    std::string str; 
-    
+    std::string str;
+
     if(fault == 0)
     {
         while(tempBuffer[0] != '\n')
@@ -111,7 +111,7 @@ void DVL_A50::handle_receive()
             if(tcpSocket->Receive(tempBuffer) !=0)
                 str = str + tempBuffer[0];
         }
-		
+
         try
         {
             json_data = json::parse(str);
@@ -154,7 +154,7 @@ void DVL_A50::publish_vel_trans_report()
 
     dvl.header.stamp = Node::now();
     dvl.header.frame_id = velocity_frame_id;
-		
+
     dvl.time = double(json_data["time"]);
     dvl.time_of_validity = json_data["time_of_validity"].get<int64_t>();
     dvl.time_of_transmission = json_data["time_of_transmission"].get<int64_t>();
@@ -165,7 +165,7 @@ void DVL_A50::publish_vel_trans_report()
     dvl.fom = double(json_data["fom"]);
     double current_altitude = double(json_data["altitude"]);
     dvl.velocity_valid = json_data["velocity_valid"];
-    
+
     // Removed logic to add old altitude if not valid. Does not report accurately what is coming from the DVL.
     // Logic should be implemented on a case by case basis.
     dvl.altitude = current_altitude;
@@ -187,7 +187,7 @@ void DVL_A50::publish_vel_trans_report()
 
     if (json_data.contains("covariance") && json_data["covariance"].is_array()) {
         const auto& matrix = json_data["covariance"];
-        
+
         for (const auto& row : matrix) {
             if (!row.is_array()) continue;
             for (const auto& value : row) {
@@ -197,35 +197,35 @@ void DVL_A50::publish_vel_trans_report()
     }
 
     dvl.covariance = twistCovariance;
-			
+
     beam0.id = json_data["transducers"][0]["id"];
     beam0.velocity = double(json_data["transducers"][0]["velocity"]);
     beam0.distance = double(json_data["transducers"][0]["distance"]);
     beam0.rssi = double(json_data["transducers"][0]["rssi"]);
     beam0.nsd = double(json_data["transducers"][0]["nsd"]);
     beam0.valid = json_data["transducers"][0]["beam_valid"];
-			
+
     beam1.id = json_data["transducers"][1]["id"];
     beam1.velocity = double(json_data["transducers"][1]["velocity"]);
     beam1.distance = double(json_data["transducers"][1]["distance"]);
     beam1.rssi = double(json_data["transducers"][1]["rssi"]);
     beam1.nsd = double(json_data["transducers"][1]["nsd"]);
     beam1.valid = json_data["transducers"][1]["beam_valid"];
-			
+
     beam2.id = json_data["transducers"][2]["id"];
     beam2.velocity = double(json_data["transducers"][2]["velocity"]);
     beam2.distance = double(json_data["transducers"][2]["distance"]);
     beam2.rssi = double(json_data["transducers"][2]["rssi"]);
     beam2.nsd = double(json_data["transducers"][2]["nsd"]);
     beam2.valid = json_data["transducers"][2]["beam_valid"];
-			
+
     beam3.id = json_data["transducers"][3]["id"];
     beam3.velocity = double(json_data["transducers"][3]["velocity"]);
     beam3.distance = double(json_data["transducers"][3]["distance"]);
     beam3.rssi = double(json_data["transducers"][3]["rssi"]);
     beam3.nsd = double(json_data["transducers"][3]["nsd"]);
     beam3.valid = json_data["transducers"][3]["beam_valid"];
-		    
+
     dvl.beams = {beam0, beam1, beam2, beam3};
     dvl_pub_report->publish(dvl);
 }
